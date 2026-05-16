@@ -3,6 +3,7 @@
 .gd-app {
   --gd-sidebar: #fdfbf9;
   --gd-main: #f5f2f0;
+  overflow-x: hidden;
   --gd-green: #1a6b5c;
   --gd-green-dark: #0f4a40;
   --gd-green-light: #e8f3ef;
@@ -48,8 +49,10 @@
 .gd-content {
   flex: 1;
   min-width: 0;
+  max-width: 100%;
   display: flex;
   flex-direction: column;
+  overflow-x: hidden;
 }
 
 /* Sidebar */
@@ -157,7 +160,9 @@
 .gd-main {
   flex: 1;
   min-width: 0;
+  max-width: 100%;
   padding: 1.75rem 2rem 2.5rem;
+  overflow-x: hidden;
 }
 
 .gd-header {
@@ -600,10 +605,38 @@
   cursor: pointer;
 }
 
+.gd-card--scroll-table {
+  overflow: hidden;
+}
+
+.gd-card--scroll-table .gd-card__head {
+  padding-left: 1.35rem;
+  padding-right: 1.35rem;
+}
+
+.gd-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+  padding-bottom: 0.25rem;
+}
+
+.gd-card--scroll-table .gd-empty {
+  padding: 0 1.35rem 1.25rem;
+}
+
 .gd-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.85rem;
+}
+
+.gd-table--tours {
+  min-width: 32rem;
+}
+
+.gd-table--bookings {
+  min-width: 40rem;
 }
 
 .gd-table th,

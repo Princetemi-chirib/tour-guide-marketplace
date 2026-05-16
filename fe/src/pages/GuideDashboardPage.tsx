@@ -449,14 +449,15 @@ export function GuideDashboardPage() {
             </div>
           </form>
 
-          <article className="gd-card">
+          <article className="gd-card gd-card--scroll-table">
             <div className="gd-card__head">
               <h2 className="gd-card__title">All tours ({tours.length})</h2>
             </div>
             {tours.length === 0 ? (
               <p className="gd-empty">No tours yet. Create your first tour above.</p>
             ) : (
-              <table className="gd-table">
+              <div className="gd-table-wrap">
+              <table className="gd-table gd-table--tours">
                 <thead>
                   <tr>
                     <th>Title</th>
@@ -487,6 +488,7 @@ export function GuideDashboardPage() {
                   ))}
                 </tbody>
               </table>
+              </div>
             )}
           </article>
         </>
@@ -496,11 +498,12 @@ export function GuideDashboardPage() {
         <>
           <h2 className="gd-panel-title">Bookings</h2>
           <p className="gd-panel-lead">Travelers who have reserved your tours.</p>
-          <article className="gd-card">
+          <article className="gd-card gd-card--scroll-table">
             {bookings.length === 0 ? (
               <p className="gd-empty">No bookings yet.</p>
             ) : (
-              <table className="gd-table">
+              <div className="gd-table-wrap">
+              <table className="gd-table gd-table--bookings">
                 <thead>
                   <tr>
                     <th>Tour</th>
@@ -532,6 +535,7 @@ export function GuideDashboardPage() {
                   ))}
                 </tbody>
               </table>
+              </div>
             )}
           </article>
         </>

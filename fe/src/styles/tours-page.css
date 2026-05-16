@@ -19,6 +19,7 @@
   background: var(--t-cream);
   font-family: var(--font-sans);
   color: var(--t-text);
+  overflow-x: hidden;
 }
 
 .tours-page a {
@@ -30,6 +31,8 @@
   max-width: 1280px;
   margin: 0 auto;
   padding: 1.25rem 1.5rem 3rem;
+  min-width: 0;
+  overflow-x: hidden;
 }
 
 /* Top bar */
@@ -744,6 +747,9 @@
 .tours-booking {
   padding-bottom: 2.5rem;
   max-width: 520px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .tours-booking__title {
@@ -768,6 +774,8 @@
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .tours-booking__form label {
@@ -810,6 +818,10 @@
   flex-wrap: wrap;
   gap: 0.75rem;
   margin-top: 0.5rem;
+}
+
+.tours-booking__actions .tours-detail__btn {
+  max-width: 100%;
 }
 
 .tours-booking__alert {
