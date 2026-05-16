@@ -1,6 +1,9 @@
 {
   "name": "tour-guide-marketplace",
   "private": true,
+  "engines": {
+    "node": ">=20 <23"
+  },
   "workspaces": [
     "fe",
     "be"
