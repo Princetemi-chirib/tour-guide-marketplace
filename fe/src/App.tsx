@@ -17,11 +17,11 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route index element={<HomePage />} />
+          <Route path="register" element={<RegisterPage />} />
+          <Route path="login" element={<LoginPage />} />
           <Route element={<Layout />}>
             <Route path="tours" element={<TourListPage />} />
             <Route path="tours/:id" element={<TourDetailPage />} />
-            <Route path="login" element={<LoginPage />} />
-            <Route path="register" element={<RegisterPage />} />
             <Route
               path="tours/:id/book"
               element={

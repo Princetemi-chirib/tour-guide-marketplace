@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { AuthSplitVisual } from '../components/AuthSplitVisual';
 import { useAuth } from '../context/AuthContext';
 import { MockError } from '../mock/service';
+import '../styles/auth-split.css';
 
 export function LoginPage() {
   const { login } = useAuth();
@@ -30,41 +32,65 @@ export function LoginPage() {
   };
 
   return (
-    <div className="page auth-page">
-      <h1>Log in</h1>
-      <p className="page-lead">Welcome back. Sign in to book tours or manage your guide account.</p>
-      <p className="mock-hint">
-        Demo: <code>traveler@marketplace.test</code> or <code>guide@marketplace.test</code> /{' '}
-        <code>password123</code>
-      </p>
-      <form className="form-card" onSubmit={handleSubmit}>
-        {error && <p className="alert alert--error">{error}</p>}
-        <label>
-          Email
-          <input
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-        </label>
-        <label>
-          Password
-          <input
-            type="password"
-            required
-            minLength={6}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-        </label>
-        <button type="submit" className="btn btn--primary" disabled={submitting}>
-          {submitting ? 'Signing in…' : 'Log in'}
-        </button>
-      </form>
-      <p className="auth-page__footer">
-        New here? <Link to="/register">Create an account</Link>
-      </p>
+    <div className="auth-split">
+      <AuthSplitVisual message="Welcome back — pick up where you left off and explore your next adventure." />
+
+      <div className="auth-split__form-panel">
+        <div className="auth-split__inner">
+          <Link to="/" className="auth-split__logo">
+            TGM
+          </Link>
+
+          <h1 className="auth-split__title">Welcome back</h1>
+          <p className="auth-split__subtitle">
+            Sign in to book tours, view your bookings, or manage your guide dashboard.
+          </p>
+
+          <p className="auth-split__hint">
+            Demo: <strong>traveler@marketplace.test</strong> or{' '}
+            <strong>guide@marketplace.test</strong> · password <strong>password123</strong>
+          </p>
+
+          <form className="auth-split__form" onSubmit={handleSubmit}>
+            {error && <p className="auth-split__alert auth-split__alert--error">{error}</p>}
+
+            <div className="auth-split__field">
+              <label htmlFor="login-email">Email</label>
+              <input
+                id="login-email"
+                type="email"
+                required
+                autoComplete="email"
+                placeholder="Enter email address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+
+            <div className="auth-split__field">
+              <label htmlFor="login-password">Password</label>
+              <input
+                id="login-password"
+                type="password"
+                required
+                minLength={6}
+                autoComplete="current-password"
+                placeholder="Enter your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
+
+            <button type="submit" className="auth-split__submit" disabled={submitting}>
+              {submitting ? 'Signing in…' : 'Continue'}
+            </button>
+          </form>
+
+          <p className="auth-split__footer">
+            Don&apos;t have an account? <Link to="/register">Sign up</Link>
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
