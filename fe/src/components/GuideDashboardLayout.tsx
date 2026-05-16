@@ -1,3 +1,4 @@
+import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import '../styles/guide-dashboard.css';
@@ -9,7 +10,7 @@ interface Props {
   onNavChange: (nav: GuideNav) => void;
   onCreateTour: () => void;
   headerSubtitle: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }
 
 function initials(name: string) {
@@ -76,17 +77,39 @@ export function GuideDashboardLayout({
 }: Props) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    if (!sidebarOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSidebarOpen(false);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [sidebarOpen]);
+
+  useEffect(() => {
+    document.body.style.overflow = sidebarOpen ? 'hidden' : '';
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [sidebarOpen]);
 
   if (!user) return null;
 
   const firstName = user.name.split(/\s+/)[0];
 
-  const navBtn = (id: GuideNav, label: string, icon: React.ReactNode) => (
+  const closeSidebar = () => setSidebarOpen(false);
+
+  const navBtn = (id: GuideNav, label: string, icon: ReactNode) => (
     <li>
       <button
         type="button"
         className={`gd-sidebar__link ${activeNav === id ? 'is-active' : ''}`}
-        onClick={() => onNavChange(id)}
+        onClick={() => {
+          onNavChange(id);
+          closeSidebar();
+        }}
       >
         {icon}
         {label}
@@ -95,12 +118,30 @@ export function GuideDashboardLayout({
   );
 
   return (
-    <div className="gd-app">
-      <aside className="gd-sidebar">
-        <Link to="/" className="gd-sidebar__logo">
-          TGM
-          <span>Tour Guide Marketplace</span>
-        </Link>
+    <div className={`gd-app ${sidebarOpen ? 'gd-app--nav-open' : ''}`}>
+      <div
+        className={`gd-sidebar-backdrop ${sidebarOpen ? 'is-open' : ''}`}
+        aria-hidden={!sidebarOpen}
+        onClick={closeSidebar}
+      />
+
+      <aside className={`gd-sidebar ${sidebarOpen ? 'is-open' : ''}`} aria-hidden={!sidebarOpen}>
+        <div className="gd-sidebar__top">
+          <Link to="/" className="gd-sidebar__logo" onClick={closeSidebar}>
+            TGM
+            <span>Tour Guide Marketplace</span>
+          </Link>
+          <button
+            type="button"
+            className="gd-sidebar__close"
+            aria-label="Close menu"
+            onClick={closeSidebar}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
 
         <div className="gd-sidebar__group">
           <span className="gd-sidebar__label">Main menu</span>
@@ -135,6 +176,7 @@ export function GuideDashboardLayout({
           type="button"
           className="gd-sidebar__link gd-sidebar__logout"
           onClick={() => {
+            closeSidebar();
             logout();
             navigate('/');
           }}
@@ -144,33 +186,52 @@ export function GuideDashboardLayout({
         </button>
       </aside>
 
-      <main className="gd-main">
-        <header className="gd-header">
-          <div>
-            <h1 className="gd-header__title">
-              {greeting()}, {firstName}!
-            </h1>
-            <p className="gd-header__sub">{headerSubtitle}</p>
-          </div>
-          <div className="gd-header__actions">
-            <button type="button" className="gd-btn-primary" onClick={onCreateTour}>
-              Create new tour +
-            </button>
-            <button type="button" className="gd-icon-btn" aria-label="Notifications">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-              </svg>
-            </button>
-            <div className="gd-header__user">
-              <span className="gd-header__avatar">{initials(user.name)}</span>
-              <span className="gd-header__name">{user.name}</span>
-            </div>
-          </div>
-        </header>
+      <div className="gd-content">
+        <div className="gd-mobile-topbar">
+          <button
+            type="button"
+            className="gd-icon-btn gd-menu-btn"
+            aria-label="Open menu"
+            aria-expanded={sidebarOpen}
+            onClick={() => setSidebarOpen(true)}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+          <Link to="/" className="gd-mobile-topbar__logo">
+            TGM
+          </Link>
+        </div>
 
-        {children}
-      </main>
+        <main className="gd-main">
+          <header className="gd-header">
+            <div>
+              <h1 className="gd-header__title">
+                {greeting()}, {firstName}!
+              </h1>
+              <p className="gd-header__sub">{headerSubtitle}</p>
+            </div>
+            <div className="gd-header__actions">
+              <button type="button" className="gd-btn-primary" onClick={onCreateTour}>
+                Create new tour +
+              </button>
+              <button type="button" className="gd-icon-btn" aria-label="Notifications">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                </svg>
+              </button>
+              <div className="gd-header__user">
+                <span className="gd-header__avatar">{initials(user.name)}</span>
+                <span className="gd-header__name">{user.name}</span>
+              </div>
+            </div>
+          </header>
+
+          {children}
+        </main>
+      </div>
     </div>
   );
 }
