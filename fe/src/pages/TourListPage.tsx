@@ -1,54 +1,174 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { TourCard } from '../components/TourCard';
+import { TourListingCard } from '../components/TourListingCard';
+import { ToursAppShell } from '../components/ToursAppShell';
 import { mockGetTours } from '../mock/service';
+
+const FAV_KEY = 'tgm_favorites';
+
+function loadFavorites(): number[] {
+  try {
+    const raw = localStorage.getItem(FAV_KEY);
+    return raw ? (JSON.parse(raw) as number[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveFavorites(ids: number[]) {
+  localStorage.setItem(FAV_KEY, JSON.stringify(ids));
+}
 
 export function TourListPage() {
   const [params, setParams] = useSearchParams();
   const q = params.get('q') ?? '';
   const [search, setSearch] = useState(q);
+  const [view, setView] = useState<'grid' | 'list'>('grid');
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [locationFilter, setLocationFilter] = useState('');
+  const [sort, setSort] = useState<'default' | 'price-asc' | 'price-desc'>('default');
+  const [featuredOnly, setFeaturedOnly] = useState(false);
+  const [favorites, setFavorites] = useState<number[]>(loadFavorites);
 
   useEffect(() => {
     setSearch(q);
   }, [q]);
 
-  const tours = useMemo(
-    () => mockGetTours(q ? { search: q } : {}),
-    [q]
-  );
+  const allTours = useMemo(() => mockGetTours(q ? { search: q } : {}), [q]);
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    const next = search.trim();
+  const locations = useMemo(() => {
+    const set = new Set(allTours.map((t) => t.location));
+    return Array.from(set).sort();
+  }, [allTours]);
+
+  const tours = useMemo(() => {
+    let list = [...allTours];
+    if (locationFilter) {
+      list = list.filter((t) => t.location === locationFilter);
+    }
+    if (featuredOnly) {
+      list = list.filter((t) => t.featured);
+    }
+    if (sort === 'price-asc') {
+      list.sort((a, b) => a.price - b.price);
+    } else if (sort === 'price-desc') {
+      list.sort((a, b) => b.price - a.price);
+    }
+    return list;
+  }, [allTours, locationFilter, featuredOnly, sort]);
+
+  const areaLabel = locationFilter || (q.trim() ? q.trim() : 'Africa');
+
+  const toggleFavorite = useCallback((id: number) => {
+    setFavorites((prev) => {
+      const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
+      saveFavorites(next);
+      return next;
+    });
+  }, []);
+
+  const handleSearchSubmit = (next: string) => {
     setParams(next ? { q: next } : {});
   };
 
   return (
-    <div className="page">
-      <h1>Tour listings</h1>
-      <p className="page-lead">Explore available tours from verified local guides.</p>
+    <ToursAppShell
+      searchValue={search}
+      onSearchChange={setSearch}
+      onSearchSubmit={handleSearchSubmit}
+    >
+      <div className="tours-toolbar">
+        <p className="tours-toolbar__count">
+          Over <strong>{tours.length}</strong> tours in <strong>{areaLabel}</strong>
+        </p>
+        <div className="tours-toolbar__controls">
+          <button
+            type="button"
+            className={`tours-filter-btn ${filterOpen ? 'is-open' : ''}`}
+            onClick={() => setFilterOpen((o) => !o)}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+            </svg>
+            Filter
+          </button>
+          <div className="tours-view-toggle" role="group" aria-label="View mode">
+            <button
+              type="button"
+              className={view === 'grid' ? 'is-active' : ''}
+              onClick={() => setView('grid')}
+              aria-label="Grid view"
+              aria-pressed={view === 'grid'}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <rect x="3" y="3" width="7" height="7" rx="1" />
+                <rect x="14" y="3" width="7" height="7" rx="1" />
+                <rect x="3" y="14" width="7" height="7" rx="1" />
+                <rect x="14" y="14" width="7" height="7" rx="1" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              className={view === 'list' ? 'is-active' : ''}
+              onClick={() => setView('list')}
+              aria-label="List view"
+              aria-pressed={view === 'list'}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
 
-      <form className="search-bar search-bar--inline" onSubmit={handleSearch}>
-        <input
-          type="search"
-          placeholder="Filter by title or location…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        <button type="submit" className="btn btn--primary">
-          Search
-        </button>
-      </form>
-
-      {tours.length === 0 ? (
-        <p className="page-status">No tours found. Try a different search.</p>
-      ) : (
-        <section className="tour-grid">
-          {tours.map((tour) => (
-            <TourCard key={tour.id} tour={tour} />
-          ))}
-        </section>
+      {filterOpen && (
+        <div className="tours-filter-panel">
+          <label>
+            Location
+            <select value={locationFilter} onChange={(e) => setLocationFilter(e.target.value)}>
+              <option value="">All locations</option>
+              {locations.map((loc) => (
+                <option key={loc} value={loc}>
+                  {loc}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Sort by
+            <select value={sort} onChange={(e) => setSort(e.target.value as typeof sort)}>
+              <option value="default">Recommended</option>
+              <option value="price-asc">Price: low to high</option>
+              <option value="price-desc">Price: high to low</option>
+            </select>
+          </label>
+          <label style={{ flexDirection: 'row', alignItems: 'center', gap: '0.5rem' }}>
+            <input
+              type="checkbox"
+              checked={featuredOnly}
+              onChange={(e) => setFeaturedOnly(e.target.checked)}
+            />
+            Featured only
+          </label>
+        </div>
       )}
-    </div>
+
+      <section className={`tours-grid ${view === 'list' ? 'tours-grid--list' : ''}`}>
+        {tours.length === 0 ? (
+          <p className="tours-empty">No tours found. Try a different search or filter.</p>
+        ) : (
+          tours.map((tour) => (
+            <TourListingCard
+              key={tour.id}
+              tour={tour}
+              view={view}
+              isFavorite={favorites.includes(tour.id)}
+              onToggleFavorite={toggleFavorite}
+            />
+          ))
+        )}
+      </section>
+    </ToursAppShell>
   );
 }

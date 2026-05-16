@@ -1,5 +1,4 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
-import { Layout } from './components/Layout';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AuthProvider } from './context/AuthContext';
 import { BookingPage } from './pages/BookingPage';
@@ -19,35 +18,33 @@ export default function App() {
           <Route index element={<HomePage />} />
           <Route path="register" element={<RegisterPage />} />
           <Route path="login" element={<LoginPage />} />
-          <Route element={<Layout />}>
-            <Route path="tours" element={<TourListPage />} />
-            <Route path="tours/:id" element={<TourDetailPage />} />
-            <Route
-              path="tours/:id/book"
-              element={
-                <ProtectedRoute roles={['traveler']}>
-                  <BookingPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="dashboard"
-              element={
-                <ProtectedRoute roles={['traveler']}>
-                  <UserDashboardPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="guide"
-              element={
-                <ProtectedRoute roles={['guide']}>
-                  <GuideDashboardPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Route>
+          <Route path="tours" element={<TourListPage />} />
+          <Route path="tours/:id" element={<TourDetailPage />} />
+          <Route
+            path="tours/:id/book"
+            element={
+              <ProtectedRoute roles={['traveler']}>
+                <BookingPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="dashboard"
+            element={
+              <ProtectedRoute roles={['traveler']}>
+                <UserDashboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="guide"
+            element={
+              <ProtectedRoute roles={['guide']}>
+                <GuideDashboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

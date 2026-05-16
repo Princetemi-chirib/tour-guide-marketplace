@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { ToursAppShell } from '../components/ToursAppShell';
 import { useAuth } from '../context/AuthContext';
 import { MockError, mockGetTourById } from '../mock/service';
 
@@ -31,30 +32,43 @@ export function TourDetailPage() {
   };
 
   if (!tour) {
-    return <p className="alert alert--error">Tour not found</p>;
-  }
-
-  return (
-    <article className="page tour-detail">
-      <img src={tour.imageUrl} alt={tour.title} className="tour-detail__hero" />
-      <div className="tour-detail__content">
-        <p className="tour-detail__location">{tour.location}</p>
-        <h1>{tour.title}</h1>
-        <p className="tour-detail__meta">
-          <span>Duration: {tour.duration}</span>
-          <span>Guide: {tour.guideName}</span>
-          <span className="tour-detail__price">${tour.price.toFixed(0)}</span>
-        </p>
-        <p className="tour-detail__description">{tour.description}</p>
-        <div className="tour-detail__actions">
-          <button type="button" className="btn btn--primary" onClick={handleBook}>
-            Book this tour
-          </button>
-          <Link to="/tours" className="btn btn--ghost">
+    return (
+      <ToursAppShell>
+        <div className="tours-detail">
+          <p className="tours-detail__error">Tour not found.</p>
+          <Link to="/tours" className="tours-detail__back">
             Back to listings
           </Link>
         </div>
-      </div>
-    </article>
+      </ToursAppShell>
+    );
+  }
+
+  return (
+    <ToursAppShell>
+      <article className="tours-detail">
+        <div className="tours-detail__card">
+          <img src={tour.imageUrl} alt={tour.title} className="tours-detail__hero" />
+          <div className="tours-detail__content">
+            <p className="tours-detail__location">{tour.location}</p>
+            <h1 className="tours-detail__title">{tour.title}</h1>
+            <p className="tours-detail__meta">
+              <span>Duration: {tour.duration}</span>
+              <span>Guide: {tour.guideName}</span>
+              <span className="tours-detail__price">${tour.price.toFixed(0)}</span>
+            </p>
+            <p className="tours-detail__description">{tour.description}</p>
+            <div className="tours-detail__actions">
+              <button type="button" className="tours-detail__btn tours-detail__btn--primary" onClick={handleBook}>
+                Book this tour
+              </button>
+              <Link to="/tours" className="tours-detail__btn tours-detail__btn--ghost">
+                Back to listings
+              </Link>
+            </div>
+          </div>
+        </div>
+      </article>
+    </ToursAppShell>
   );
 }
