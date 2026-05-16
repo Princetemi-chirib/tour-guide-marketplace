@@ -649,16 +649,14 @@
     margin-right: auto;
   }
 
-  .gd-sidebar__group {
+  .gd-sidebar__group:last-of-type {
     display: none;
   }
 
-  .gd-sidebar__group--mobile-nav {
-    display: flex;
-    gap: 0.25rem;
+  .gd-sidebar__group:first-of-type {
+    display: block;
     width: 100%;
     margin-top: 0.75rem;
-    overflow-x: auto;
   }
 
   .gd-sidebar__label,

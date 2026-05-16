@@ -102,7 +102,7 @@ export function GuideDashboardLayout({
           <span>Tour Guide Marketplace</span>
         </Link>
 
-        <div className="gd-sidebar__group gd-sidebar__group--mobile-nav">
+        <div className="gd-sidebar__group">
           <span className="gd-sidebar__label">Main menu</span>
           <ul className="gd-sidebar__nav">
             {navBtn('overview', 'Dashboard', icons.dashboard)}
