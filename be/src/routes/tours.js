@@ -1,150 +1,165 @@
 import { Router } from 'express';
-import { getDb } from '../db/init.js';
+import { getDb, getNextId } from '../db/mongo.js';
+import { formatTour } from '../db/format.js';
 import { authenticate } from '../middleware/auth.js';
 import { requireRole } from '../middleware/requireRole.js';
 
 const router = Router();
 
-function formatTour(row) {
-  return {
-    id: row.id,
-    guideId: row.guide_id,
-    title: row.title,
-    description: row.description,
-    price: row.price,
-    location: row.location,
-    duration: row.duration,
-    imageUrl: row.image_url,
-    featured: Boolean(row.featured),
-    guideName: row.guide_name ?? undefined,
-    createdAt: row.created_at,
-  };
+async function findTourWithGuide(id) {
+  const db = getDb();
+  const tour = await db.collection('tours').findOne({ id: Number(id) });
+  if (!tour) return null;
+  const guide = await db.collection('users').findOne({ id: tour.guideId });
+  return formatTour(tour, guide?.name);
 }
 
-const tourSelect = `
-  SELECT t.*, u.name AS guide_name
-  FROM tours t
-  JOIN users u ON u.id = t.guide_id
-`;
-
-router.get('/mine', authenticate, requireRole('guide'), (req, res) => {
-  const db = getDb();
-  const rows = db
-    .prepare(`${tourSelect} WHERE t.guide_id = ? ORDER BY t.created_at DESC`)
-    .all(req.user.id);
-  res.json({ tours: rows.map(formatTour) });
+router.get('/mine', authenticate, requireRole('guide'), async (req, res, next) => {
+  try {
+    const tours = await getDb()
+      .collection('tours')
+      .find({ guideId: req.user.id })
+      .sort({ createdAt: -1 })
+      .toArray();
+    const guide = await getDb().collection('users').findOne({ id: req.user.id });
+    res.json({ tours: tours.map((t) => formatTour(t, guide?.name)) });
+  } catch (err) {
+    next(err);
+  }
 });
 
-router.get('/', (req, res) => {
-  const { search, featured } = req.query;
-  const db = getDb();
-  let sql = `${tourSelect} WHERE 1=1`;
-  const params = [];
+router.get('/', async (req, res, next) => {
+  try {
+    const { search, featured } = req.query;
+    const filter = {};
 
-  if (featured === 'true') {
-    sql += ' AND t.featured = 1';
-  }
-  if (search?.trim()) {
-    sql += ' AND (t.title LIKE ? OR t.location LIKE ? OR t.description LIKE ?)';
-    const term = `%${search.trim()}%`;
-    params.push(term, term, term);
-  }
+    if (featured === 'true') {
+      filter.featured = true;
+    }
+    if (search?.trim()) {
+      const term = search.trim();
+      filter.$or = [
+        { title: { $regex: term, $options: 'i' } },
+        { location: { $regex: term, $options: 'i' } },
+        { description: { $regex: term, $options: 'i' } },
+      ];
+    }
 
-  sql += ' ORDER BY t.featured DESC, t.created_at DESC';
-  const rows = db.prepare(sql).all(...params);
-  res.json({ tours: rows.map(formatTour) });
+    const tours = await getDb()
+      .collection('tours')
+      .find(filter)
+      .sort({ featured: -1, createdAt: -1 })
+      .toArray();
+
+    const guideIds = [...new Set(tours.map((t) => t.guideId))];
+    const guides = await getDb()
+      .collection('users')
+      .find({ id: { $in: guideIds } })
+      .toArray();
+    const guideMap = new Map(guides.map((g) => [g.id, g.name]));
+
+    res.json({
+      tours: tours.map((t) => formatTour(t, guideMap.get(t.guideId))),
+    });
+  } catch (err) {
+    next(err);
+  }
 });
 
-router.get('/:id', (req, res) => {
-  const db = getDb();
-  const row = db.prepare(`${tourSelect} WHERE t.id = ?`).get(req.params.id);
-  if (!row) {
-    return res.status(404).json({ message: 'Tour not found' });
+router.get('/:id', async (req, res, next) => {
+  try {
+    const tour = await findTourWithGuide(req.params.id);
+    if (!tour) {
+      return res.status(404).json({ message: 'Tour not found' });
+    }
+    res.json({ tour });
+  } catch (err) {
+    next(err);
   }
-  res.json({ tour: formatTour(row) });
 });
 
-router.post('/', authenticate, requireRole('guide'), (req, res) => {
-  const { title, description, price, location, duration, imageUrl, featured } = req.body;
+router.post('/', authenticate, requireRole('guide'), async (req, res, next) => {
+  try {
+    const { title, description, price, location, duration, imageUrl, featured } = req.body;
 
-  if (!title?.trim() || !description?.trim() || !location?.trim() || !duration?.trim()) {
-    return res.status(400).json({ message: 'Title, description, location, and duration are required' });
+    if (!title?.trim() || !description?.trim() || !location?.trim() || !duration?.trim()) {
+      return res.status(400).json({ message: 'Title, description, location, and duration are required' });
+    }
+    if (price == null || Number(price) < 0) {
+      return res.status(400).json({ message: 'Valid price is required' });
+    }
+
+    const id = await getNextId('tourId');
+    const doc = {
+      id,
+      guideId: req.user.id,
+      title: title.trim(),
+      description: description.trim(),
+      price: Number(price),
+      location: location.trim(),
+      duration: duration.trim(),
+      imageUrl:
+        imageUrl?.trim() ||
+        'https://images.unsplash.com/photo-1469854523086-cc02afe5c88d?w=800&q=80',
+      featured: Boolean(featured),
+      createdAt: new Date().toISOString(),
+    };
+
+    await getDb().collection('tours').insertOne(doc);
+    const tour = await findTourWithGuide(id);
+    res.status(201).json({ tour });
+  } catch (err) {
+    next(err);
   }
-  if (price == null || Number(price) < 0) {
-    return res.status(400).json({ message: 'Valid price is required' });
-  }
-
-  const db = getDb();
-  const result = db
-    .prepare(
-      `INSERT INTO tours (guide_id, title, description, price, location, duration, image_url, featured)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-    )
-    .run(
-      req.user.id,
-      title.trim(),
-      description.trim(),
-      Number(price),
-      location.trim(),
-      duration.trim(),
-      imageUrl?.trim() || 'https://images.unsplash.com/photo-1469854523086-cc02afe5c88d?w=800&q=80',
-      featured ? 1 : 0
-    );
-
-  const row = db.prepare(`${tourSelect} WHERE t.id = ?`).get(result.lastInsertRowid);
-  res.status(201).json({ tour: formatTour(row) });
 });
 
-router.put('/:id', authenticate, requireRole('guide'), (req, res) => {
-  const db = getDb();
-  const existing = db.prepare('SELECT * FROM tours WHERE id = ?').get(req.params.id);
-  if (!existing) {
-    return res.status(404).json({ message: 'Tour not found' });
+router.put('/:id', authenticate, requireRole('guide'), async (req, res, next) => {
+  try {
+    const tourId = Number(req.params.id);
+    const existing = await getDb().collection('tours').findOne({ id: tourId });
+    if (!existing) {
+      return res.status(404).json({ message: 'Tour not found' });
+    }
+    if (existing.guideId !== req.user.id) {
+      return res.status(403).json({ message: 'You can only edit your own tours' });
+    }
+
+    const { title, description, price, location, duration, imageUrl, featured } = req.body;
+    const update = {};
+    if (title?.trim()) update.title = title.trim();
+    if (description?.trim()) update.description = description.trim();
+    if (price != null) update.price = Number(price);
+    if (location?.trim()) update.location = location.trim();
+    if (duration?.trim()) update.duration = duration.trim();
+    if (imageUrl?.trim()) update.imageUrl = imageUrl.trim();
+    if (featured != null) update.featured = Boolean(featured);
+
+    await getDb().collection('tours').updateOne({ id: tourId }, { $set: update });
+    const tour = await findTourWithGuide(tourId);
+    res.json({ tour });
+  } catch (err) {
+    next(err);
   }
-  if (existing.guide_id !== req.user.id) {
-    return res.status(403).json({ message: 'You can only edit your own tours' });
-  }
-
-  const { title, description, price, location, duration, imageUrl, featured } = req.body;
-
-  db.prepare(
-    `UPDATE tours SET
-      title = COALESCE(?, title),
-      description = COALESCE(?, description),
-      price = COALESCE(?, price),
-      location = COALESCE(?, location),
-      duration = COALESCE(?, duration),
-      image_url = COALESCE(?, image_url),
-      featured = COALESCE(?, featured)
-     WHERE id = ?`
-  ).run(
-    title?.trim() ?? null,
-    description?.trim() ?? null,
-    price != null ? Number(price) : null,
-    location?.trim() ?? null,
-    duration?.trim() ?? null,
-    imageUrl?.trim() ?? null,
-    featured != null ? (featured ? 1 : 0) : null,
-    req.params.id
-  );
-
-  const row = db.prepare(`${tourSelect} WHERE t.id = ?`).get(req.params.id);
-  res.json({ tour: formatTour(row) });
 });
 
-router.delete('/:id', authenticate, requireRole('guide'), (req, res) => {
-  const db = getDb();
-  const existing = db.prepare('SELECT * FROM tours WHERE id = ?').get(req.params.id);
-  if (!existing) {
-    return res.status(404).json({ message: 'Tour not found' });
-  }
-  if (existing.guide_id !== req.user.id) {
-    return res.status(403).json({ message: 'You can only delete your own tours' });
-  }
+router.delete('/:id', authenticate, requireRole('guide'), async (req, res, next) => {
+  try {
+    const tourId = Number(req.params.id);
+    const existing = await getDb().collection('tours').findOne({ id: tourId });
+    if (!existing) {
+      return res.status(404).json({ message: 'Tour not found' });
+    }
+    if (existing.guideId !== req.user.id) {
+      return res.status(403).json({ message: 'You can only delete your own tours' });
+    }
 
-  db.prepare('DELETE FROM bookings WHERE tour_id = ?').run(req.params.id);
-  db.prepare('DELETE FROM tours WHERE id = ?').run(req.params.id);
-  res.status(204).send();
+    const db = getDb();
+    await db.collection('bookings').deleteMany({ tourId });
+    await db.collection('tours').deleteOne({ id: tourId });
+    res.status(204).send();
+  } catch (err) {
+    next(err);
+  }
 });
 
 export default router;

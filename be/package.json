@@ -5,7 +5,9 @@
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
-    "dev": "node --watch src/index.js"
+    "dev": "node --watch src/index.js",
+    "seed": "node --env-file=.env scripts/seed-db.js",
+    "seed:force": "node --env-file=.env scripts/seed-db.js --force"
   },
   "keywords": [],
   "author": "",
@@ -13,7 +15,7 @@
   "description": "",
   "dependencies": {
     "bcryptjs": "^3.0.3",
-    "better-sqlite3": "^12.10.0",
+    "mongodb": "^6.16.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",

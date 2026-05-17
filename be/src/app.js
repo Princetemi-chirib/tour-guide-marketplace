@@ -1,26 +1,22 @@
 import express from 'express';
 import cors from 'cors';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { initDb } from './db/init.js';
+import { connectMongo } from './db/mongo.js';
 import authRoutes from './routes/auth.js';
 import tourRoutes from './routes/tours.js';
 import bookingRoutes from './routes/bookings.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
 let dbReady = false;
+
+export async function ensureDb() {
+  if (!dbReady) {
+    await connectMongo();
+    dbReady = true;
+  }
+}
 
 export function createApp() {
   if (!process.env.JWT_SECRET) {
     process.env.JWT_SECRET = 'dev-secret-change-in-production';
-  }
-
-  if (!dbReady) {
-    const databasePath =
-      process.env.DATABASE_PATH || path.join(__dirname, '..', 'data', 'marketplace.db');
-    initDb(databasePath);
-    dbReady = true;
   }
 
   const app = express();
@@ -28,8 +24,21 @@ export function createApp() {
   app.use(cors({ origin: true, credentials: true }));
   app.use(express.json());
 
-  app.get('/health', (_req, res) => {
-    res.json({ ok: true });
+  app.use(async (req, res, next) => {
+    try {
+      await ensureDb();
+      next();
+    } catch (err) {
+      console.error('Database connection failed:', err.message);
+      res.status(503).json({
+        message:
+          'Database unavailable. Set MONGODB_URI in be/.env (see be/.env.example).',
+      });
+    }
+  });
+
+  app.get('/health', async (_req, res) => {
+    res.json({ ok: true, database: 'mongodb' });
   });
 
   app.use('/api/auth', authRoutes);
