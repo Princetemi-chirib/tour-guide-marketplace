@@ -1,14 +1,15 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { getErrorMessage } from '../api/client';
+import {
+  apiCreateTour,
+  apiDeleteTour,
+  apiGetGuideBookings,
+  apiGetMyTours,
+  apiUpdateTour,
+} from '../api/services';
+import { Loader } from '../components/Loader';
 import { GuideDashboardLayout, type GuideNav } from '../components/GuideDashboardLayout';
 import { useAuth } from '../context/AuthContext';
-import {
-  MockError,
-  mockCreateTour,
-  mockDeleteTour,
-  mockGetBookingsForGuide,
-  mockGetToursByGuide,
-  mockUpdateTour,
-} from '../mock/service';
 import type { Booking, Tour } from '../types';
 
 const emptyTour = {
@@ -95,17 +96,33 @@ export function GuideDashboardPage() {
   const [autoApprove, setAutoApprove] = useState(false);
   const [chartPeriod, setChartPeriod] = useState('month');
 
-  const tours = useMemo(
-    () => (user ? mockGetToursByGuide(user.id) : []),
-    [user, refreshKey]
-  );
-
-  const bookings = useMemo(
-    () => (user ? mockGetBookingsForGuide(user.id) : []),
-    [user, refreshKey]
-  );
+  const [tours, setTours] = useState<Tour[]>([]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [dataLoading, setDataLoading] = useState(true);
 
   const reload = () => setRefreshKey((k) => k + 1);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    setDataLoading(true);
+    Promise.all([apiGetMyTours(), apiGetGuideBookings()])
+      .then(([toursData, bookingsData]) => {
+        if (!cancelled) {
+          setTours(toursData);
+          setBookings(bookingsData);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) setError(getErrorMessage(err, 'Could not load dashboard data'));
+      })
+      .finally(() => {
+        if (!cancelled) setDataLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user, refreshKey]);
 
   const totalEarnings = useMemo(() => {
     return bookings.reduce((sum, b) => {
@@ -173,20 +190,21 @@ export function GuideDashboardPage() {
     });
   };
 
-  const handleDelete = (id: number) => {
+  const handleDelete = async (id: number) => {
     if (!user) return;
     if (!confirm('Delete this tour? Related bookings will be removed.')) return;
+    setError('');
     try {
-      mockDeleteTour(id, user.id);
+      await apiDeleteTour(id);
       setMessage('Tour deleted');
       reload();
       if (editingId === id) resetForm();
     } catch (err) {
-      setError(err instanceof MockError ? err.message : 'Delete failed');
+      setError(getErrorMessage(err, 'Delete failed'));
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
     setError('');
@@ -202,16 +220,16 @@ export function GuideDashboardPage() {
     };
     try {
       if (editingId) {
-        mockUpdateTour(editingId, user.id, body);
+        await apiUpdateTour(editingId, body);
         setMessage('Tour updated');
       } else {
-        mockCreateTour(user.id, body);
+        await apiCreateTour(body);
         setMessage('Tour created');
       }
       resetForm();
       reload();
     } catch (err) {
-      setError(err instanceof MockError ? err.message : 'Save failed');
+      setError(getErrorMessage(err, 'Save failed'));
     }
   };
 
@@ -226,8 +244,11 @@ export function GuideDashboardPage() {
     >
       {error && <p className="gd-alert gd-alert--error">{error}</p>}
       {message && <p className="gd-alert gd-alert--success">{message}</p>}
+      {dataLoading && (
+        <Loader variant="section" message="Loading your guide hub…" />
+      )}
 
-      {activeNav === 'overview' && (
+      {activeNav === 'overview' && !dataLoading && (
         <>
           <div className="gd-stats">
             <article className="gd-card gd-stat">
@@ -370,7 +391,7 @@ export function GuideDashboardPage() {
         </>
       )}
 
-      {activeNav === 'tours' && (
+      {activeNav === 'tours' && !dataLoading && (
         <>
           <h2 className="gd-panel-title">{editingId ? 'Edit tour' : 'My tours'}</h2>
           <p className="gd-panel-lead">Create and manage the experiences travelers can book.</p>
@@ -494,7 +515,7 @@ export function GuideDashboardPage() {
         </>
       )}
 
-      {activeNav === 'bookings' && (
+      {activeNav === 'bookings' && !dataLoading && (
         <>
           <h2 className="gd-panel-title">Bookings</h2>
           <p className="gd-panel-lead">Travelers who have reserved your tours.</p>

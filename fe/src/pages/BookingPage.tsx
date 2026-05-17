@@ -1,26 +1,43 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { getErrorMessage } from '../api/client';
+import { apiCreateBooking, apiGetTour } from '../api/services';
+import { Loader } from '../components/Loader';
 import { ToursAppShell } from '../components/ToursAppShell';
 import { useAuth } from '../context/AuthContext';
-import { MockError, mockCreateBooking, mockGetTourById } from '../mock/service';
+import type { Tour } from '../types';
 
 export function BookingPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [tour, setTour] = useState<Tour | null>(null);
+  const [loadingTour, setLoadingTour] = useState(true);
   const [date, setDate] = useState('');
   const [peopleCount, setPeopleCount] = useState(1);
   const [paymentMethod, setPaymentMethod] = useState('card');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const tour = useMemo(() => {
-    if (!id) return null;
-    try {
-      return mockGetTourById(Number(id));
-    } catch {
-      return null;
+  useEffect(() => {
+    if (!id) {
+      setLoadingTour(false);
+      return;
     }
+    let cancelled = false;
+    apiGetTour(Number(id))
+      .then((t) => {
+        if (!cancelled) setTour(t);
+      })
+      .catch(() => {
+        if (!cancelled) setTour(null);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingTour(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -29,7 +46,7 @@ export function BookingPage() {
     setError('');
     setSubmitting(true);
     try {
-      mockCreateBooking(user.id, {
+      await apiCreateBooking({
         tourId: tour.id,
         date,
         peopleCount,
@@ -37,11 +54,19 @@ export function BookingPage() {
       });
       navigate('/dashboard', { replace: true });
     } catch (err) {
-      setError(err instanceof MockError ? err.message : 'Booking failed');
+      setError(getErrorMessage(err, 'Booking failed'));
     } finally {
       setSubmitting(false);
     }
   };
+
+  if (loadingTour) {
+    return (
+      <ToursAppShell>
+        <Loader variant="full" message="Preparing your booking…" />
+      </ToursAppShell>
+    );
+  }
 
   if (!tour) {
     return (

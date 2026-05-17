@@ -1,4 +1,5 @@
 import { Navigate, useLocation } from 'react-router-dom';
+import { Loader } from './Loader';
 import { useAuth } from '../context/AuthContext';
 import type { UserRole } from '../types';
 
@@ -12,7 +13,7 @@ export function ProtectedRoute({ children, roles }: Props) {
   const location = useLocation();
 
   if (loading) {
-    return <p className="page-status">Loading…</p>;
+    return <Loader variant="fullscreen" message="Checking your session…" />;
   }
 
   if (!user) {

@@ -12,7 +12,9 @@
     "dev": "concurrently -k -n fe,be -c cyan,magenta \"npm run dev -w fe\" \"npm run dev -w be\"",
     "dev:fe": "npm run dev -w fe",
     "dev:be": "npm run dev -w be",
-    "build": "npm run build -w fe",
+    "build": "npm run build -w be && npm run build -w fe",
+    "build:be": "npm run build -w be",
+    "build:fe": "npm run build -w fe",
     "start:be": "npm run start -w be"
   },
   "devDependencies": {

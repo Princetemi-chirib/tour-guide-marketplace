@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { getErrorMessage } from '../api/client';
 import { AuthSplitVisual } from '../components/AuthSplitVisual';
 import { useAuth } from '../context/AuthContext';
-import { MockError } from '../mock/service';
 import '../styles/auth-split.css';
 
 export function LoginPage() {
@@ -25,7 +25,7 @@ export function LoginPage() {
       const dest = from || (user.role === 'guide' ? '/guide' : '/dashboard');
       navigate(dest, { replace: true });
     } catch (err) {
-      setError(err instanceof MockError ? err.message : 'Login failed');
+      setError(getErrorMessage(err, 'Login failed'));
     } finally {
       setSubmitting(false);
     }

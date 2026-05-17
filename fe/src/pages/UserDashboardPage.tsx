@@ -1,16 +1,36 @@
-import { useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { getErrorMessage } from '../api/client';
+import { apiGetMyBookings } from '../api/services';
+import { Loader } from '../components/Loader';
 import { ToursAppShell } from '../components/ToursAppShell';
 import { useAuth } from '../context/AuthContext';
-import { mockGetBookingsForUser } from '../mock/service';
+import type { Booking } from '../types';
 
 export function UserDashboardPage() {
   const { user } = useAuth();
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const bookings = useMemo(
-    () => (user ? mockGetBookingsForUser(user.id) : []),
-    [user]
-  );
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    setLoading(true);
+    apiGetMyBookings()
+      .then((data) => {
+        if (!cancelled) setBookings(data);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(getErrorMessage(err, 'Could not load bookings'));
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   return (
     <ToursAppShell>
@@ -38,7 +58,10 @@ export function UserDashboardPage() {
               Browse tours
             </Link>
           </div>
-          {bookings.length === 0 ? (
+          {error && <p className="page-status">{error}</p>}
+          {loading ? (
+            <Loader variant="section" message="Gathering your bookings…" />
+          ) : bookings.length === 0 ? (
             <p className="page-status">No bookings yet. Find a tour to reserve.</p>
           ) : (
             <div className="booking-list">

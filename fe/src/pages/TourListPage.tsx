@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { getErrorMessage } from '../api/client';
+import { apiListTours } from '../api/services';
+import { Loader } from '../components/Loader';
 import { TourListingCard } from '../components/TourListingCard';
 import { ToursAppShell } from '../components/ToursAppShell';
-import { mockGetTours } from '../mock/service';
+import type { Tour } from '../types';
 
 const FAV_KEY = 'tgm_favorites';
 
@@ -29,12 +32,35 @@ export function TourListPage() {
   const [sort, setSort] = useState<'default' | 'price-asc' | 'price-desc'>('default');
   const [featuredOnly, setFeaturedOnly] = useState(false);
   const [favorites, setFavorites] = useState<number[]>(loadFavorites);
+  const [allTours, setAllTours] = useState<Tour[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState('');
 
   useEffect(() => {
     setSearch(q);
   }, [q]);
 
-  const allTours = useMemo(() => mockGetTours(q ? { search: q } : {}), [q]);
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setFetchError('');
+    apiListTours({
+      search: q || undefined,
+      featured: featuredOnly || undefined,
+    })
+      .then((tours) => {
+        if (!cancelled) setAllTours(tours);
+      })
+      .catch((err) => {
+        if (!cancelled) setFetchError(getErrorMessage(err, 'Could not load tours'));
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [q, featuredOnly]);
 
   const locations = useMemo(() => {
     const set = new Set(allTours.map((t) => t.location));
@@ -46,16 +72,13 @@ export function TourListPage() {
     if (locationFilter) {
       list = list.filter((t) => t.location === locationFilter);
     }
-    if (featuredOnly) {
-      list = list.filter((t) => t.featured);
-    }
     if (sort === 'price-asc') {
       list.sort((a, b) => a.price - b.price);
     } else if (sort === 'price-desc') {
       list.sort((a, b) => b.price - a.price);
     }
     return list;
-  }, [allTours, locationFilter, featuredOnly, sort]);
+  }, [allTours, locationFilter, sort]);
 
   const areaLabel = locationFilter || (q.trim() ? q.trim() : 'Africa');
 
@@ -78,9 +101,15 @@ export function TourListPage() {
       onSearchSubmit={handleSearchSubmit}
     >
       <div className="tours-toolbar">
-        <p className="tours-toolbar__count">
-          Over <strong>{tours.length}</strong> tours in <strong>{areaLabel}</strong>
-        </p>
+        <div className="tours-toolbar__count">
+          {loading ? (
+            <Loader variant="inline" message="Finding tours…" />
+          ) : (
+            <p className="tours-toolbar__count-text">
+              Over <strong>{tours.length}</strong> tours in <strong>{areaLabel}</strong>
+            </p>
+          )}
+        </div>
         <div className="tours-toolbar__controls">
           <button
             type="button"
@@ -154,8 +183,12 @@ export function TourListPage() {
         </div>
       )}
 
+      {fetchError && <p className="tours-empty">{fetchError}</p>}
+
       <section className={`tours-grid ${view === 'list' ? 'tours-grid--list' : ''}`}>
-        {tours.length === 0 ? (
+        {loading ? (
+          <Loader variant="section" message="Rolling out tours…" className="tours-empty-loader" />
+        ) : tours.length === 0 && !fetchError ? (
           <p className="tours-empty">No tours found. Try a different search or filter.</p>
         ) : (
           tours.map((tour) => (

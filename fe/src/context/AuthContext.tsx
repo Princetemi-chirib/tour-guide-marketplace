@@ -6,12 +6,8 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import {
-  getSessionUser,
-  mockLogin,
-  mockLogout,
-  mockRegister,
-} from '../mock/service';
+import { getToken, setToken } from '../api/client';
+import { apiGetMe, apiLogin, apiRegister } from '../api/services';
 import type { User, UserRole } from '../types';
 
 interface AuthContextValue {
@@ -25,7 +21,7 @@ interface AuthContextValue {
     role: UserRole
   ) => Promise<User>;
   logout: () => void;
-  refreshUser: () => void;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -34,17 +30,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const refreshUser = useCallback(() => {
-    setUser(getSessionUser());
+  const refreshUser = useCallback(async () => {
+    const token = getToken();
+    if (!token) {
+      setUser(null);
+      return;
+    }
+    try {
+      const { user: me } = await apiGetMe();
+      setUser(me);
+    } catch {
+      setToken(null);
+      setUser(null);
+    }
   }, []);
 
   useEffect(() => {
-    refreshUser();
-    setLoading(false);
+    refreshUser().finally(() => setLoading(false));
   }, [refreshUser]);
 
   const login = async (email: string, password: string) => {
-    const loggedIn = mockLogin(email, password);
+    const { token, user: loggedIn } = await apiLogin(email, password);
+    setToken(token);
     setUser(loggedIn);
     return loggedIn;
   };
@@ -55,13 +62,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     password: string,
     role: UserRole
   ) => {
-    const created = mockRegister(name, email, password, role);
+    const { token, user: created } = await apiRegister(name, email, password, role);
+    setToken(token);
     setUser(created);
     return created;
   };
 
   const logout = () => {
-    mockLogout();
+    setToken(null);
     setUser(null);
   };
 

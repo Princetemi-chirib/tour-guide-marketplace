@@ -1,7 +1,4 @@
-/**
- * HTTP API client — reserved for backend integration later.
- * The app currently uses mock data from `src/mock/service.ts`.
- */
+/** HTTP client for the Express API (proxied to localhost:3000 in dev). */
 
 const TOKEN_KEY = 'marketplace_token';
 
@@ -48,4 +45,10 @@ export async function api<T>(
     throw new ApiError(res.status, data.message || 'Request failed');
   }
   return data as T;
+}
+
+export function getErrorMessage(err: unknown, fallback = 'Something went wrong'): string {
+  if (err instanceof ApiError) return err.message;
+  if (err instanceof Error) return err.message;
+  return fallback;
 }

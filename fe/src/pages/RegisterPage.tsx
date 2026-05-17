@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { MockError } from '../mock/service';
+import { getErrorMessage } from '../api/client';
 import type { UserRole } from '../types';
 import { AuthSplitVisual } from '../components/AuthSplitVisual';
 import '../styles/auth-split.css';
@@ -27,7 +27,7 @@ export function RegisterPage() {
       const user = await register(name, email, password, role);
       navigate(user.role === 'guide' ? '/guide' : '/dashboard', { replace: true });
     } catch (err) {
-      setError(err instanceof MockError ? err.message : 'Registration failed');
+      setError(getErrorMessage(err, 'Registration failed'));
     } finally {
       setSubmitting(false);
     }

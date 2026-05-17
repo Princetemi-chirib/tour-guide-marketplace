@@ -1,22 +1,47 @@
-import { useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { ApiError } from '../api/client';
+import { apiGetTour } from '../api/services';
+import { Loader } from '../components/Loader';
 import { ToursAppShell } from '../components/ToursAppShell';
 import { useAuth } from '../context/AuthContext';
-import { MockError, mockGetTourById } from '../mock/service';
+import type { Tour } from '../types';
 
 export function TourDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [tour, setTour] = useState<Tour | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
 
-  const tour = useMemo(() => {
-    if (!id) return null;
-    try {
-      return mockGetTourById(Number(id));
-    } catch (e) {
-      if (e instanceof MockError) return null;
-      throw e;
+  useEffect(() => {
+    if (!id) {
+      setNotFound(true);
+      setLoading(false);
+      return;
     }
+    let cancelled = false;
+    setLoading(true);
+    setNotFound(false);
+    apiGetTour(Number(id))
+      .then((t) => {
+        if (!cancelled) setTour(t);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          if (err instanceof ApiError && err.status === 404) {
+            setNotFound(true);
+          }
+          setTour(null);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
 
   const handleBook = () => {
@@ -31,7 +56,15 @@ export function TourDetailPage() {
     navigate(`/tours/${id}/book`);
   };
 
-  if (!tour) {
+  if (loading) {
+    return (
+      <ToursAppShell>
+        <Loader variant="full" message="Unfolding your tour…" />
+      </ToursAppShell>
+    );
+  }
+
+  if (notFound || !tour) {
     return (
       <ToursAppShell>
         <div className="tours-detail">
